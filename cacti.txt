@@ -1,0 +1,233 @@
+Cacti adalah satu aplikasi open source, web-base monitoring jaringan dan 
+merupakan solusi pembuatan grafik network yang lengkap yang didesign untuk
+memanfaatkan kemampuan fungsi RRDTool sebagai  peyimpanan data dan pembuatan grafik. 
+Cacti menyediakan pengumpulan data yang cepat, pola grafik advanced, metode perolehan multiple data, 
+dan fitur pengelolaan user. Semuanya dikemas secara intuitif, sebuah interface yang mudah digunakan  
+mudah dipahami untuk local area network yang mempunya ratusan device yang komplek. Dengan menggunakan cacti 
+kita dapat memonitor trafik jaringan lewat pada sebuah server.
+
+
+Pada bagian depan cacti dapat menangani banyak pengguna, tiap pengguna mempunyai kumpulan grafik sendiri, 
+sehingga bagus digunakan untuk penyedia web (terutama untuk penyedia layanan server pribadi, 
+dan penyedia colokasi) dalam menampilkan static bandwidth untuk pelanggan mereka. Beberapa fitur utama dari cacti :
+
+Item Grafik yang tidak terbatas
+Tampilan menurun, daftar dan pratinjau grafik
+Manipulasi data grafik
+Pengumpulan grafik
+Otomatisai perangkat dan grafik
+Templat sumber data untuk grafik
+Tempat perangkat untuk grafik
+Manajemen keamanan yang berbasis pengguna dan grup pengguna
+
+
+
+Cek Interface
+# ip a
+
+Konfigurasi Interface menyesuaikan nama file Interface yang ada
+Contoh:
+# vi /etc/sysconfig/network-scripts/ifcfg-enp0s3
+
+Ubah baris berikut
+BOOTPROTO=none
+ONBOOT=yes
+
+Tambahkan baris berikut
+IPADDR=192.168.xx.xx
+PREFIX=24
+GATEWAY=192.168.xx.xx
+DNS1=192.168.xx.xx
+
+Catatan:
+IP yang digunakan bisa diubah dengan angka terakhir NIM. Jika NIM 312017019
+Maka IP yang digunakan yaitu : 192.168.19.x
+Jika menggunakan koneksi Wifi, Wired, atau Hotspot Tethering. ikuti IP yang digunakan dari sumbernya.
+
+Simpan file dengan menekan "Esc" dan masukan perintah
+:wq
+
+Catatan:
+w = Write
+q = Quit
+
+Restart service Network dengan perintah
+# systemctl restart network
+
+Cek Koneksi jika yang menggunakan Internet dengan menjalankan Ping
+# ping google.com
+
+-====-
+Pra Instalasi Cacti
+
+Install Apache 
+# yum install httpd httpd-devel -y 
+
+Install Mysql 
+# yum install mariadb-server -y 
+
+Install php 
+# yum install php-mysql php-pear php-common php-gd php-devel php php-mbstring php-cli -y
+
+Install php-snmp
+# yum install php-snmp -y
+
+Install net-snmp
+# yum install net-snmp-utils net-snmp-libs -y
+
+Install rrdtool
+# yum install rrdtool
+
+-===-
+Starting Apache, MySQL and SNMP Services
+# systemctl start snmpd
+# systemctl start mariadb
+# systemctl start httpd
+
+Enable Apache, MySQL and SNMP Services
+# systemctl enable snmpd
+# systemctl enable mariadb
+# systemctl enable httpd
+
+install package cacti
+# yum install wget
+# wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+# rpm -ivh epel-release-latest-7.noarch.rpm
+# yum install cacti -y
+
+Password MySql
+# mysql_secure_installation
+1. Langsung saja tekan "Enter" karena user root belum memiliki password
+2. Tekan "Y" untuk membuat user root, diikuti dengan "Enter"
+3. Tekan "Y" saat pemberitahuan penghapusan user anonim
+4. Tekan "Y" saat pemberitahuan pelarangan login root secara remote
+5. Tekan "Y" saat pemberitahuan penghapusan database test
+6. Tekan "Y" saat pemberitahuan pemuatan ulang izin tabel
+
+Catatan:
+Pada semua perintah yang memiliki pilihan seperti ini, [Y/n]
+Secara bawaan perintah yang dimasukan adalah huruf yang dibuat besar.
+jika huruf Y besar, berarti perintah bawaan akan mengirimkan "Yes".
+pada perintah dengan pilihan seperti ini, bisa menekan "Enter" tanpa konfirmasi jika mengikuti konfigurasi bawaan.
+
+# mysql -u root -p
+Lalu masukan password yang tadi dibuat
+
+MariaDB [(none)]> create database cacti;
+MariaDB [(none)]> GRANT ALL ON cacti.* TO cacti@localhost IDENTIFIED BY 'tkjc';
+MariaDB [(none)]> FLUSH privileges;
+MariaDB [(none)]> quit;
+
+Catatan:
+tkjc > Dapat dirubah menjadi password lain, pada tutorial ini saya akan menggunakan perintah yang sama.
+Perintah tadi digunakan untuk membuat database yang nantinya akan digunakan oleh Cacti untuk menyimpan data.
+
+# rpm -ql cacti | grep cacti.sql 
+jangan hilangkan alamat ini, karena digunakan pada perintah berikutnya
+
+Import database cacti
+# mysql -u cacti -p cacti < /usr/share/doc/xx
+parameter diatas digunakan untuk masuk ke aplikasi "mysql" dengan nama pengguna "cacti", memiliki password, dan melakukan "Import" ke database "cacti" dari direktori file "/usr/share/doc/cacti-xx/cacti.sql"
+
+# vi /etc/cacti/db.php
+Ubah pada baris berikut menjadi :
+$database_username = "cacti";
+$database_password = "tkjc";
+
+Simpan file dengan menekan "Esc" dan masukan perintah
+:wq
+
+-=====-
+Konfigurasi Firewall :
+
+kita bakal allow service http dengan cara :
+
+# firewall-cmd --permanent --zone=public --add-service=http
+# firewall-cmd --reload
+
+-=====-
+Konfigurasi Apache server untuk cacti :
+
+# vi /etc/httpd/conf.d/cacti.conf
+File yang dirubah
+1. Require  host localhost -> Require all granted
+2. Allow from localhost -> Allow from all
+
+Restart Service Apahce :
+# systemctl restart httpd.service
+
+# nano /etc/cron.d/cacti
+Hilangkan tanda "#" pada barisnya
+
+memberikan akses database user and flush privileges.
+mysql -u root -p mysql < /usr/share/mysql/mysql_test_data_timezone.sql
+mysql -u root -p
+MariaDB [(none)]> GRANT SELECT ON mysql.time_zone_name TO cacti@localhost;
+MariaDB [(none)]> flush privileges;
+
+-=====-
+# vi /etc/php.ini
+cari dengan menggunakan prefix "/"
+/timezone
+
+Ubah zona waktu menjadi Asia Jakarta di file php.ini
+date.timezone = Asia/Jakarta
+
+-=====-
+Disable SE Linux
+# setenforce 0
+
+# vi /etc/selinux/config
+Buka file selinux, dan ubah baris berikut
+SELINUX=disabled
+SELINUXTYPE=targeted
+
+-=====-
+Cek di browser dengan masuk ke alamat
+192.168.xx.xx/cacti
+
+Login dengan pengguna
+Username: admin
+Password: admin
+
+Ubah password Admin.
+Password harus 8 karakter, minimal mengandung 1 simbol, 1 ukuran karakter berbeda, dan 1 angka.
+
+-=====-
+Disini ubah tema sesuai yang disukai, atau biarkan saja.
+dan ceklis persetujuan GPL.
+
+-=====-
+Kita coba selesaikan satu per satu.
+pertama konfigurasi PHP yang tidak sesuai.
+memory_limit harus lebih dari sama dengan 800M
+max_execution_time harus lebih dari sama dengan 60
+dan penulisan date.timezone yang salah.
+
+#vi /etc/php.ini
+cari dengan menggunakan prefix "/"
+/memory_limit
+
+setelah pengubahan data selesai, jalankan ulang httpd dengan perintah
+# systemctl restart httpd.service
+
+untuk masalah MariaDB termasuk opsional krusial jika digunakan seutuhnya, dalam tutorial ini saya akan lanjutkan hingga monitoring berhasil.
+
+Pada bagian Default Profile, ubah Profile menjadi 30 detik dan Cron menjadi "Every Minute"
+
+Network Range ubah menjadi ip network yang digunakan
+
+Pada bagian server collation, kita masukan perintah yang diberikan oleh cacti di database server
+
+Sampai sini instalasi Cacti selesai, selanjutnya saya akan menunjukan cara memonitoring PC dengan OS Windows.
+
+-=====-
+Agar grafik cepat bergerak, ubah poller menjadi 10 detik
+
+Grafik dapat dilihat secara realtime jika masuk ke tab List View di pojok kanan atas, dan menekan icon grafik dengan tanda panah ke kanan.
+
+-=====-
+Sekian dari saya.
+Jika ada pertanyaan lain, bisa kontak saya melalui telegram
+
+@zhoeryamh
